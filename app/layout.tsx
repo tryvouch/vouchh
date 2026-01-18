@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 export const metadata: Metadata = {
     title: "Vouch | Automate Trust. Scale Conversion.",
     description: "The AI-native social proof platform for professional businesses.",
+    viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
 };
 
 export default function RootLayout({
