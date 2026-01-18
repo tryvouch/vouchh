@@ -1,17 +1,19 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { MAX_FREE_REVIEWS } from "./helpers";
+import { getAuthUserId } from "./auth";
 
 export const createWidget = mutation({
     args: {
-        userId: v.id("users"),
         name: v.string(),
         sourceType: v.union(v.literal("google"), v.literal("yelp"), v.literal("manual")),
         sourceId: v.string(),
     },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        
         return await ctx.db.insert("widgets", {
-            userId: args.userId,
+            userId,
             name: args.name,
             sourceType: args.sourceType,
             sourceId: args.sourceId,
@@ -22,11 +24,13 @@ export const createWidget = mutation({
 });
 
 export const getWidgets = query({
-    args: { userId: v.id("users") },
-    handler: async (ctx, args) => {
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+
         return await ctx.db
             .query("widgets")
-            .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+            .withIndex("by_user_id", (q) => q.eq("userId", userId))
             .collect();
     },
 });

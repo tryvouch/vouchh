@@ -29,7 +29,6 @@
     "react-dom": "19.2.3",
     "react-native": "^0.73.0",
     "react-native-web": "^0.19.10",
-    "resend": "^3.1.0",
     "sonner": "^1.4.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",

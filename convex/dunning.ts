@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
 // Called when a payment fails (e.g. via webhook)
-export const reportPaymentFailure = mutation({
+export const reportPaymentFailure = internalMutation({
     args: {
         userId: v.id("users"),
         subscriptionId: v.id("subscriptions"),
@@ -77,10 +77,10 @@ export const sendDunningEmail = internalAction({
         nextStatus: v.union(v.literal("urgent_sent"), v.literal("final_sent"), v.literal("resolved")),
     },
     handler: async (ctx, args) => {
-        console.log(`[Resend] Sending email ${args.templateId} to ${args.email}`);
+        console.log(`[Dunning] Processing failure for ${args.email} (Template: ${args.templateId})`);
         
-        // Mock Resend API call
-        // await resend.emails.send({ ... })
+        // Email sending logic removed.
+        // We simulate the delay or action here if needed, or just proceed to state transition.
 
         await ctx.runMutation(internal.dunning.updateFailureStatus, {
             failureId: args.failureId,

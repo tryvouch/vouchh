@@ -1,18 +1,19 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./auth";
 
 const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export const initUser = mutation({
-    args: {
-        clerkId: v.string(),
-        email: v.string(),
-    },
-    handler: async (ctx, args) => {
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
         // Check if user already exists
         const existingUser = await ctx.db
             .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
             .unique();
 
         if (existingUser) {
@@ -21,8 +22,8 @@ export const initUser = mutation({
 
         // Create new user with Pro plan (trial period)
         const userId = await ctx.db.insert("users", {
-            clerkId: args.clerkId,
-            email: args.email,
+            clerkId: identity.subject,
+            email: identity.email!,
             plan: "pro", // Start as Pro during trial
             createdAt: Date.now(),
         });
@@ -43,16 +44,17 @@ export const initUser = mutation({
 });
 
 export const getSubscription = query({
-    args: { userId: v.id("users") },
-    handler: async (ctx, args) => {
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
         return await ctx.db
             .query("subscriptions")
-            .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+            .withIndex("by_user_id", (q) => q.eq("userId", userId))
             .unique();
     },
 });
 
-export const syncSubscription = mutation({
+export const syncSubscription = internalMutation({
     args: {
         clerkId: v.string(),
         dodoPaymentId: v.string(), // Keep for backward compatibility
