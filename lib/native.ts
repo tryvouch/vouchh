@@ -31,9 +31,17 @@ export const NativeAuth = {
             const result = await LocalAuthentication.authenticateAsync({
                 promptMessage: 'Vouch Elite Access',
                 fallbackLabel: 'Enter Passcode',
+                disableDeviceFallback: false, // MANDATORY: Allow OS fallback (PIN/Pattern)
+                cancelLabel: 'Use Password'
             });
 
-            return { success: result.success };
+            if (!result.success) {
+                // If biometric fails/cancels, strictly fallback to Clerk
+                console.warn("Biometric failed, enforcing Clerk auth.");
+                return { success: false, error: "Authentication failed. Please use your password." };
+            }
+
+            return { success: true };
         } catch (e) {
             console.error("Native Auth Error:", e);
             return { success: false, error: "Authentication failed" };

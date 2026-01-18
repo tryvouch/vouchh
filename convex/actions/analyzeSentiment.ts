@@ -15,15 +15,17 @@ export const analyzeReview = action({
       return { sentiment: null };
     }
 
-    const prompt = `Analyze this review for a business. Categorize it into exactly one of these three buckets:
+    const prompt = `Analyze this review for a business. 
+    You must output strictly valid JSON in the following format:
+    {
+      "sentiment": "Positive" | "Questionable" | "Spam",
+      "score": number (0-100),
+      "summary": string (max 10 words)
+    }
     
-1. "Positive" (Good feedback, happy customer)
-2. "Questionable" (Mixed, confusing, or mild complaint)
-3. "Spam" (Irrelevant, bot-like, or abusive)
-
-Review: "${review.content}"
-
-Respond with ONLY the category name.`;
+    Review: "${review.content}"
+    
+    Respond with ONLY the JSON object. Do not include markdown formatting or backticks.`;
 
     try {
       const response = await fetch(
@@ -32,7 +34,10 @@ Respond with ONLY the category name.`;
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                response_mime_type: "application/json"
+            }
           }),
         }
       );
@@ -40,11 +45,27 @@ Respond with ONLY the category name.`;
       if (!response.ok) throw new Error(`Gemini Error: ${response.status}`);
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim(); // "Positive"
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      
+      // Strict JSON Parsing with Safety Fallback
+      let result;
+      try {
+          // Remove any potential markdown code blocks if the model ignores instruction
+          const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          result = JSON.parse(cleanText);
+      } catch (e) {
+          console.error("AI Hallucination - Invalid JSON:", text);
+          // Fallback to basic sentiment logic if AI fails
+          result = { 
+              sentiment: "Questionable", 
+              score: 50, 
+              summary: "AI parsing failed, flagged for review." 
+          };
+      }
 
-      // Validate
-      const valid = ["Positive", "Questionable", "Spam"];
-      const sentiment = valid.includes(text) ? text : "Questionable";
+      // Validate schema compliance
+      const validSentiments = ["Positive", "Questionable", "Spam"];
+      const sentiment = validSentiments.includes(result.sentiment) ? result.sentiment : "Questionable";
 
       await ctx.runMutation(internal.reviews.updateSentiment, {
         id: args.reviewId,

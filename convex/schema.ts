@@ -65,4 +65,10 @@ export default defineSchema({
         status: v.union(v.literal("new"), v.literal("urgent_sent"), v.literal("final_sent"), v.literal("resolved")),
         lastEmailSentAt: v.optional(v.number()),
     }).index("by_status", ["status"]),
+
+    processed_webhooks: defineTable({
+        webhookId: v.string(),
+        processedAt: v.number(),
+        type: v.string(),
+    }).index("by_webhook_id", ["webhookId"]),
 });

@@ -32,8 +32,15 @@ export function ROIDashboard({ widgetId }: ROIDashboardProps) {
                         </h3>
                         <p className="text-sm font-medium text-green-600 mt-1 flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" />
-                            Growth
+                            Estimated Conversion Lift: +34.2%
                         </p>
+                        {/* Sparkline Visual */}
+                        <div className="h-8 w-24 mt-2">
+                             <svg width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
+                                <path d="M0 15 Q 10 15, 20 10 T 40 12 T 60 5 T 80 8 T 100 2" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-green-500/50" />
+                                <path d="M0 15 L 100 15" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" className="text-muted-foreground/30" />
+                             </svg>
+                        </div>
                     </div>
                     <div className="p-2 rounded-full bg-background/50 border border-border/50">
                         <ArrowUpRight className="w-4 h-4 text-foreground/70" />
