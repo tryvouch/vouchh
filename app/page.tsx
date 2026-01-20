@@ -217,8 +217,8 @@ export default function Home() {
                 <div className="max-w-[1400px] mx-auto px-8 flex items-center justify-between text-sm text-muted-foreground tracking-tight">
                     <div>© 2026 Vouch Inc. All rights reserved.</div>
                     <div className="flex gap-8">
-                        <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
-                        <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
+                        <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+                        <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
                         <Link href="#" className="hover:text-foreground transition-colors">Twitter</Link>
                     </div>
                 </div>
