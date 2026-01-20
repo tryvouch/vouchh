@@ -3,8 +3,8 @@ import { Id } from "./_generated/dataModel";
 interface Subscription {
     _id: Id<"subscriptions">;
     userId: Id<"users">;
-    dodoPaymentId: string;
-    status: "active" | "cancelled" | "past_due" | "trialing";
+    dodoId: string;
+    status: "active" | "cancelled" | "past_due" | "trialing" | "hibernating";
     currentPeriodEnd: number;
     trialEndsAt?: number;
 }

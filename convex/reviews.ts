@@ -1,5 +1,6 @@
 import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./auth";
 
 export const getById = internalQuery({
     args: { id: v.id("reviews") },
@@ -11,6 +12,11 @@ export const getById = internalQuery({
 export const getByWidget = query({
     args: { widgetId: v.id("widgets") },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        const widget = await ctx.db.get(args.widgetId);
+        if (!widget || widget.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
         return await ctx.db
             .query("reviews")
             .withIndex("by_widget_id", (q) => q.eq("widgetId", args.widgetId))
@@ -20,12 +26,13 @@ export const getByWidget = query({
 });
 
 export const getAllByUser = query({
-    args: { userId: v.id("users") },
-    handler: async (ctx, args) => {
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
         // Get all widgets for user
         const widgets = await ctx.db
             .query("widgets")
-            .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+            .withIndex("by_user_id", (q) => q.eq("userId", userId))
             .collect();
 
         // Get all reviews for all widgets
@@ -67,6 +74,16 @@ export const updateSentimentAndVisibility = internalMutation({
     },
 });
 
+export const updateNpsCategory = internalMutation({
+    args: {
+        id: v.id("reviews"),
+        npsCategory: v.union(v.literal("Promoter"), v.literal("Detractor"), v.literal("Passive")),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.id, { npsCategory: args.npsCategory });
+    },
+});
+
 export const createInternal = internalMutation({
     args: {
         widgetId: v.id("widgets"),
@@ -85,6 +102,7 @@ export const createInternal = internalMutation({
             rating: args.rating,
             content: args.content,
             sentiment: args.sentiment,
+            npsCategory: undefined,
             isVisible: args.isVisible,
             createdAt: Date.now(),
         });
@@ -94,8 +112,13 @@ export const createInternal = internalMutation({
 export const toggleVisibility = mutation({
     args: { id: v.id("reviews") },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
         const review = await ctx.db.get(args.id);
         if (!review) throw new Error("Review not found");
+        const widget = await ctx.db.get(review.widgetId);
+        if (!widget || widget.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
         await ctx.db.patch(args.id, { isVisible: !review.isVisible });
         return { isVisible: !review.isVisible };
     },
@@ -110,6 +133,11 @@ export const createReview = mutation({
         content: v.string(),
     },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        const widget = await ctx.db.get(args.widgetId);
+        if (!widget || widget.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
         return await ctx.db.insert("reviews", {
             widgetId: args.widgetId,
             externalId: args.externalId,
@@ -117,6 +145,7 @@ export const createReview = mutation({
             rating: args.rating,
             content: args.content,
             sentiment: null,
+            npsCategory: undefined,
             isVisible: true,
             createdAt: Date.now(),
         });

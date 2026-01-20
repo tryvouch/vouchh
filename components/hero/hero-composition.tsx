@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Star, Check, Zap } from "lucide-react";
+import Image from "next/image";
 
 export function HeroComposition() {
     const float = {
@@ -34,10 +35,10 @@ export function HeroComposition() {
                             {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-current" />)}
                         </div>
                     </div>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" className="w-5 h-5 ml-auto" alt="Google" />
+                    <Image src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width={20} height={20} className="w-5 h-5 ml-auto" alt="Google" />
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    "We saw a 30% uplift in sales after installing Vouch. It's magic."
+                    &quot;We saw a 30% uplift in sales after installing Vouch. It&apos;s magic.&quot;
                 </p>
             </motion.div>
 

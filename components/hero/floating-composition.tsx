@@ -42,7 +42,7 @@ export function FloatingComposition() {
                     </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground line-clamp-2">
-                    "Excellent service..."
+                    &quot;Excellent service...&quot;
                 </p>
             </motion.div>
 
@@ -65,7 +65,7 @@ export function FloatingComposition() {
                     </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground line-clamp-2">
-                    "Great experience..."
+                    &quot;Great experience...&quot;
                 </p>
             </motion.div>
 
@@ -88,7 +88,7 @@ export function FloatingComposition() {
                     </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground line-clamp-2">
-                    "Highly recommend..."
+                    &quot;Highly recommend...&quot;
                 </p>
             </motion.div>
 

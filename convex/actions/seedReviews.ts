@@ -59,7 +59,7 @@ export const seedReviews = action({
         userId: v.id("users"),
         widgetId: v.id("widgets"),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<{ created: number }> => {
         const createdReviews = [];
 
         for (const review of mockReviews) {

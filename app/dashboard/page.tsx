@@ -16,7 +16,7 @@ export default function DashboardPage() {
     
     // In a real app, you'd select the active widget dynamically
     // For the "God Build", we'll mock or grab the first one if available
-    const widgets = useQuery(api.widgets.getWidgets, { userId: (user?.id as any) || "skip" });
+    const widgets = useQuery(api.widgets.getWidgets);
     const firstWidgetId = widgets?.[0]?._id;
 
     return (
@@ -74,7 +74,7 @@ export default function DashboardPage() {
                                 </div>
                                 
                                 <div className="pt-4 border-t border-border/40">
-                                    <CancellationFlow userId={user?.id || ""} />
+                                    <CancellationFlow />
                                 </div>
                             </div>
                         </section>

@@ -51,7 +51,7 @@ export function PricingCard({ variant = "default" }: PricingCardProps) {
                     <span className="text-white/50">/month</span>
                 </div>
                 <p className="text-sm text-white/50 mt-2">
-                    7-day free trial included
+                    {dodoConfig.trialDays}-day free trial included
                 </p>
             </div>
 

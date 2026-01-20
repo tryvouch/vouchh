@@ -30,6 +30,9 @@ export default defineSchema({
             v.literal("Spam"),
             v.null()
         ),
+        npsCategory: v.optional(
+            v.union(v.literal("Promoter"), v.literal("Detractor"), v.literal("Passive"))
+        ),
         isVisible: v.boolean(),
         createdAt: v.number(),
     }).index("by_widget_id", ["widgetId"]),

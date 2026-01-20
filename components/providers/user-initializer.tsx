@@ -18,11 +18,8 @@ export function UserInitializer() {
 
         const initializeUser = async () => {
             try {
-                await initUser({
-                    clerkId: user.id,
-                    email: user.emailAddresses[0]?.emailAddress || "",
-                });
-            } catch (error) {
+                await initUser({});
+            } catch {
                 // User might already exist, which is fine - silent fail for idempotency
                 // No console logging in production code
             }

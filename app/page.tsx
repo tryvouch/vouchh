@@ -204,7 +204,7 @@ export default function Home() {
                             </div>
                             <h3 className="text-2xl font-bold tracking-tight elite-kerning mb-4">Trust Score</h3>
                             <p className="text-muted-foreground text-sm leading-relaxed tracking-tight">
-                                Real-time reputation metric. Track your brand's trust level.
+                                Real-time reputation metric. Track your brand&apos;s trust level.
                             </p>
                         </div>
                         <div className="text-4xl font-bold font-mono tracking-tight">87</div>

@@ -1,4 +1,12 @@
-import { QueryCtx, MutationCtx } from "./_generated/server";
+import { QueryCtx, MutationCtx, internalQuery } from "./_generated/server";
+
+export const verifyAccess = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        await checkSubscriptionAccess(ctx);
+    }
+});
+
 
 export async function getAuthUserId(ctx: QueryCtx | MutationCtx) {
     const identity = await ctx.auth.getUserIdentity();

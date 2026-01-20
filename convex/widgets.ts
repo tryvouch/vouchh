@@ -38,10 +38,26 @@ export const getWidgets = query({
 export const getVisibleReviews = query({
     args: {
         widgetId: v.id("widgets"),
-        userPlan: v.union(v.literal("free"), v.literal("pro")),
-        isTrialActive: v.boolean(),
     },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        const widget = await ctx.db.get(args.widgetId);
+        if (!widget || widget.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        const subscription = await ctx.db
+            .query("subscriptions")
+            .withIndex("by_user_id", (q) => q.eq("userId", userId))
+            .unique();
+
+        const isTrialActive = !!(
+            subscription?.status === "trialing" &&
+            subscription.trialEndsAt &&
+            subscription.trialEndsAt > Date.now()
+        );
+        const isPro = subscription?.status === "active";
+
         const reviews = await ctx.db
             .query("reviews")
             .withIndex("by_widget_id", (q) => q.eq("widgetId", args.widgetId))
@@ -50,7 +66,7 @@ export const getVisibleReviews = query({
             .collect();
 
         // If user is on free plan and trial is not active, limit to 3 reviews
-        if (args.userPlan === "free" && !args.isTrialActive) {
+        if (!isPro && !isTrialActive) {
             return reviews.slice(0, MAX_FREE_REVIEWS);
         }
 

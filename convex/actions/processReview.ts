@@ -10,7 +10,12 @@ import { v } from "convex/values";
  */
 export const processReview = action({
   args: { reviewId: v.id("reviews") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    sentiment: "Positive" | "Questionable" | "Spam";
+    isSpam: boolean;
+    isNegative: boolean;
+    isVisible?: boolean;
+  }> => {
     const review = await ctx.runQuery(internal.reviews.getById, { id: args.reviewId });
     if (!review) throw new Error("Review not found");
 
@@ -72,7 +77,7 @@ Respond with ONLY the category name: "Positive", "Questionable", or "Spam".`;
 
       // Validate and normalize response
       const valid = ["Positive", "Questionable", "Spam"];
-      const sentiment = valid.includes(text) ? text : "Questionable";
+      const sentiment = valid.includes(text) ? (text as "Positive" | "Questionable" | "Spam") : "Questionable";
 
       // Determine visibility: Positive and Questionable are visible by default, Spam is hidden
       const isVisible = sentiment !== "Spam";
@@ -82,7 +87,7 @@ Respond with ONLY the category name: "Positive", "Questionable", or "Spam".`;
       // Update review with sentiment and visibility
       await ctx.runMutation(internal.reviews.updateSentimentAndVisibility, {
         id: args.reviewId,
-        sentiment: sentiment as "Positive" | "Questionable" | "Spam",
+        sentiment: sentiment,
         isVisible,
       });
 

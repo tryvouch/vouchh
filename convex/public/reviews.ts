@@ -6,13 +6,9 @@ import { v } from "convex/values";
  * No authentication required - used by embedded widget
  */
 export const getWidgetReviews = query({
-    args: { widgetId: v.string() },
+    args: { widgetId: v.id("widgets") },
     handler: async (ctx, args) => {
-        // Convert string ID to Id type
-        const widget = await ctx.db
-            .query("widgets")
-            .filter((q) => q.eq(q.field("_id"), args.widgetId as any))
-            .first();
+        const widget = await ctx.db.get(args.widgetId);
 
         if (!widget) {
             return [];

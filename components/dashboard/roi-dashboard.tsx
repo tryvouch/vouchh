@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { ArrowUpRight, TrendingUp } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -12,8 +11,11 @@ interface ROIDashboardProps {
 
 export function ROIDashboard({ widgetId }: ROIDashboardProps) {
     const stats = useQuery(api.analytics.getROIStats, { widgetId });
+    const trustVelocity = useQuery(api.analytics.getTrustVelocity);
 
     if (!stats) return <div className="h-48 w-full animate-pulse rounded-lg bg-muted/20" />;
+    const trustHours = trustVelocity?.hoursToFirstTestimonial;
+    const trustVelocityLabel = trustHours === null || trustHours === undefined ? "Pending" : `${trustHours}h`;
 
     return (
         <div className="relative w-full max-w-md">
@@ -24,7 +26,7 @@ export function ROIDashboard({ widgetId }: ROIDashboardProps) {
             <div className="glass-panel relative rounded-xl p-6 overflow-hidden">
                 <div className="flex items-start justify-between mb-8">
                     <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1 tracking-tight">
+                        <p className="text-sm font-medium text-muted-foreground mb-1 tracking-tight elite-secondary">
                             ROI Dashboard
                         </p>
                         <h3 className="text-4xl font-bold tracking-[-0.03em] elite-kerning">
@@ -50,8 +52,16 @@ export function ROIDashboard({ widgetId }: ROIDashboardProps) {
                 {/* Layer 3: Metrics */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-white/5 backdrop-blur-sm">
-                        <span className="text-sm text-muted-foreground">Estimated Conversion Lift</span>
+                        <span className="text-sm text-muted-foreground elite-secondary">Estimated Conversion Lift</span>
                         <span className="font-semibold tracking-tight">+{stats.conversionLift}%</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-white/5 backdrop-blur-sm">
+                        <span className="text-sm text-muted-foreground elite-secondary">Conversion Rate</span>
+                        <span className="font-semibold tracking-tight">{stats.conversionRate.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-white/5 backdrop-blur-sm">
+                        <span className="text-sm text-muted-foreground elite-secondary">Trust Velocity</span>
+                        <span className="font-semibold tracking-tight">{trustVelocityLabel}</span>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2">

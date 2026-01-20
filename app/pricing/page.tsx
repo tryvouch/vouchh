@@ -26,7 +26,7 @@ export default function PricingPage() {
             customerId: user?.id,
             successUrl: `${window.location.origin}/dashboard?upgraded=true`,
             cancelUrl: `${window.location.origin}/pricing`,
-            trialDays: 7, // 7-day free trial - reflected in checkout summary
+            trialDays: dodoConfig.trialDays,
         });
         window.location.href = checkoutUrl;
     };
@@ -73,7 +73,7 @@ export default function PricingPage() {
                         Simple Pricing
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto tracking-tight">
-                        Start with a 7-day free trial. No credit card required.
+                        Start with a {dodoConfig.trialDays}-day free trial. No credit card required.
                     </p>
                 </motion.div>
 
@@ -122,7 +122,7 @@ export default function PricingPage() {
                                 </motion.p>
                             )}
                             <p className="text-sm text-muted-foreground tracking-tight mt-4">
-                                7-day free trial • Cancel anytime
+                                {dodoConfig.trialDays}-day free trial • Cancel anytime
                             </p>
                         </div>
 
@@ -154,7 +154,7 @@ export default function PricingPage() {
                         </motion.button>
 
                         <p className="text-center text-xs text-muted-foreground mt-6 tracking-tight">
-                            No credit card required. Trial converts to paid after 7 days.
+                            No credit card required. Trial converts to paid after {dodoConfig.trialDays} days.
                         </p>
                     </div>
                 </motion.div>
@@ -172,7 +172,7 @@ export default function PricingPage() {
                     <div className="space-y-8">
                         {[
                             {
-                                q: "What happens after the 7-day trial?",
+                                q: `What happens after the ${dodoConfig.trialDays}-day trial?`,
                                 a: `Your trial automatically converts to a paid Pro subscription at $${billingPeriod === "monthly" ? "49/month" : "499/year"}. You can cancel anytime before the trial ends with no charges.`
                             },
                             {
@@ -185,7 +185,7 @@ export default function PricingPage() {
                             },
                             {
                                 q: "Do you offer refunds?",
-                                a: "We offer a 7-day free trial so you can test everything risk-free. If you're not satisfied, cancel before the trial ends."
+                                a: `We offer a ${dodoConfig.trialDays}-day free trial so you can test everything risk-free. If you're not satisfied, cancel before the trial ends.`
                             },
                             {
                                 q: "Can I switch between monthly and annual billing?",

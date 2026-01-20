@@ -32,7 +32,7 @@ export const clerkAppearance = {
         identityPreviewText: "text-foreground tracking-tight",
         identityPreviewEditButton: "text-muted-foreground hover:text-foreground tracking-tight",
         formFieldInputShowPasswordButton: "text-muted-foreground hover:text-foreground",
-        otpCodeFieldInput: "bg-card border-border text-foreground tracking-tight",
-        formResendCodeLink: "text-muted-foreground hover:text-foreground tracking-tight",
+        otpCodeFieldInput: "bg-card border border-border text-foreground font-mono focus:border-foreground focus:border-[2px] focus:ring-0 rounded-none tracking-tight",
+        formResendCodeLink: "text-muted-foreground hover:text-foreground tracking-tight font-mono text-xs",
     },
 };

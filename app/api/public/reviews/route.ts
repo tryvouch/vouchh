@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         // Note: widgetId should be a Convex ID string format
         try {
             const reviews = await convex.query(api.public.reviews.getWidgetReviews, {
-                widgetId: widgetId,
+                widgetId: widgetId as Id<"widgets">,
             });
 
             return NextResponse.json(
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
                     },
                 }
             );
-        } catch (queryError) {
+        } catch {
             // If query fails (widget doesn't exist or invalid ID), return empty array
             return NextResponse.json(
                 [],
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
                 }
             );
         }
-    } catch (error) {
+    } catch {
         // Return empty array on error (graceful degradation)
         return NextResponse.json(
             [],

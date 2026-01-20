@@ -20,7 +20,7 @@ export const NativeAuth = {
 
         try {
             // Dynamic import to avoid web build failure
-            const LocalAuthentication = require('expo-local-authentication');
+            const LocalAuthentication = await import("expo-local-authentication");
             
             const hasHardware = await LocalAuthentication.hasHardwareAsync();
             if (!hasHardware) return { success: false, error: "No hardware support" };
@@ -54,13 +54,14 @@ export const NativeNotifications = {
         if (Platform.OS === 'web') return;
 
         try {
-            const Notifications = require('expo-notifications');
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            const Notifications = await import("expo-notifications");
+            const permissions = await Notifications.getPermissionsAsync() as { status?: string };
+            const existingStatus = permissions.status ?? "denied";
             let finalStatus = existingStatus;
             
             if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
+                const requestPermissions = await Notifications.requestPermissionsAsync() as { status?: string };
+                finalStatus = requestPermissions.status ?? "denied";
             }
             
             if (finalStatus !== 'granted') {

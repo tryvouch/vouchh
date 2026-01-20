@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 
 interface TrustScoreRingProps {
     score: number; // 0-100
@@ -11,13 +10,10 @@ interface TrustScoreRingProps {
 
 export function TrustScoreRing({ score, size = 120 }: TrustScoreRingProps) {
     const { theme } = useTheme();
-    const [mounted, setMounted] = useState(false);
     const strokeWidth = 8;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const progress = (score / 100) * circumference;
-
-    useEffect(() => setMounted(true), []);
 
     // Color based on score
     const getColor = () => {
@@ -27,8 +23,9 @@ export function TrustScoreRing({ score, size = 120 }: TrustScoreRingProps) {
     };
 
     const { color, glow } = getColor();
-    const bgStroke = mounted && theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-    const textColor = mounted && theme === 'dark' ? "white" : "black";
+    const isDark = theme === "dark";
+    const bgStroke = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+    const textColor = isDark ? "white" : "black";
 
     return (
         <div className="relative" style={{ width: size, height: size }}>

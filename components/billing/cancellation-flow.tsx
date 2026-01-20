@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertTriangle, Lock } from "lucide-react";
 import { toast } from "sonner";
 
-export function CancellationFlow({ userId }: { userId: string }) {
+export function CancellationFlow() {
     const [isOpen, setIsOpen] = useState(false);
     const hibernate = useMutation(api.billing.hibernateSubscription);
     const [isLoading, setIsLoading] = useState(false);
@@ -16,11 +16,10 @@ export function CancellationFlow({ userId }: { userId: string }) {
     const handleHibernate = async () => {
         setIsLoading(true);
         try {
-            // @ts-ignore
-            await hibernate({ userId });
+            await hibernate({});
             toast.success("Account hibernated. Your data is safe.");
             setIsOpen(false);
-        } catch (error) {
+        } catch {
             toast.error("Failed to hibernate account.");
         } finally {
             setIsLoading(false);
@@ -37,7 +36,7 @@ export function CancellationFlow({ userId }: { userId: string }) {
                     <div className="mx-auto bg-red-100 p-3 rounded-full mb-4 w-fit">
                         <AlertTriangle className="h-6 w-6 text-red-600" />
                     </div>
-                    <DialogTitle className="text-center text-2xl elite-kerning">Wait, don't lose your data</DialogTitle>
+                    <DialogTitle className="text-center text-2xl elite-kerning">Wait, don&apos;t lose your data</DialogTitle>
                     <DialogDescription className="text-center pt-2">
                         Cancelling will permanently delete your reputation data, widgets, and analytics history.
                     </DialogDescription>

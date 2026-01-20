@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const convex = new ConvexHttpClient(process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL!);
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
     try {
-        const payload = await req.json();
-        const signature = req.headers.get("dodo-signature");
+        const secret = process.env.DODO_WEBHOOK_SECRET;
+        if (!secret) {
+            return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });
+        }
 
-        // TODO: Verify webhook signature with DODO_WEBHOOK_SECRET
-        // const isValid = verifySignature(payload, signature, process.env.DODO_WEBHOOK_SECRET!);
-        // if (!isValid) return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        const rawBody = await req.text();
+        const signature = req.headers.get("dodo-signature");
+        if (!signature) {
+            return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+        }
+
+        const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+        const expectedBuffer = Buffer.from(expected, "utf8");
+        const signatureBuffer = Buffer.from(signature, "utf8");
+        if (expectedBuffer.length !== signatureBuffer.length || !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)) {
+            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        }
+
+        const payload = JSON.parse(rawBody);
+        const webhookId = req.headers.get("webhook-id") || `wh_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
         const { type, data } = payload;
 
@@ -34,7 +50,10 @@ export async function POST(req: NextRequest) {
                     past_due: "past_due",
                 };
 
-                await convex.mutation(api.billing.syncSubscription, {
+                // Use IDEMPOTENT mutation
+                await convex.mutation(api.billing.syncSubscriptionIdempotent, {
+                    webhookId,
+                    eventType: type,
                     clerkId,
                     dodoPaymentId: data.id,
                     status: statusMap[data.status] || "active",
@@ -49,19 +68,29 @@ export async function POST(req: NextRequest) {
                 const clerkId = data.metadata?.clerk_id || data.customer_id;
 
                 if (clerkId) {
-                    await convex.mutation(api.billing.syncSubscription, {
+                    // Use IDEMPOTENT mutation
+                    await convex.mutation(api.billing.syncSubscriptionIdempotent, {
+                        webhookId,
+                        eventType: type,
                         clerkId,
                         dodoPaymentId: data.id,
                         status: "cancelled",
                         currentPeriodEnd: Date.now(),
+                        trialEndsAt: undefined,
                     });
                 }
                 break;
             }
 
             case "payment.failed": {
-                // Payment failed - could trigger email notification here
-                // Log to monitoring service in production
+                const clerkId = data.metadata?.clerk_id || data.customer_id;
+                if (clerkId) {
+                    await convex.mutation(api.billing.handlePaymentFailed, {
+                        webhookId,
+                        clerkId,
+                        dodoPaymentId: data.id,
+                    });
+                }
                 break;
             }
 

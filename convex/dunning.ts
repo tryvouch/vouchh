@@ -1,4 +1,4 @@
-import { mutation, internalMutation, action, internalAction } from "./_generated/server";
+import { internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -77,11 +77,6 @@ export const sendDunningEmail = internalAction({
         nextStatus: v.union(v.literal("urgent_sent"), v.literal("final_sent"), v.literal("resolved")),
     },
     handler: async (ctx, args) => {
-        console.log(`[Dunning] Processing failure for ${args.email} (Template: ${args.templateId})`);
-        
-        // Email sending logic removed.
-        // We simulate the delay or action here if needed, or just proceed to state transition.
-
         await ctx.runMutation(internal.dunning.updateFailureStatus, {
             failureId: args.failureId,
             status: args.nextStatus,

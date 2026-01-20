@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 
 interface UpgradeButtonProps {

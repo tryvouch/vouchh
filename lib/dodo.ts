@@ -8,7 +8,7 @@ export const dodoConfig = {
     annualPrice: 499,
     // Legacy support
     proPlanPriceId: "price_vouch_pro_49",
-    trialDays: 7,
+    trialDays: 14,
     proPlanPrice: 49,
 };
 
