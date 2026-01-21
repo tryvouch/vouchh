@@ -3,7 +3,13 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const getConvexClient = () => {
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+        return null;
+    }
+    return new ConvexHttpClient(url);
+};
 
 /**
  * Public API endpoint for widget reviews
@@ -12,6 +18,13 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
  */
 export async function GET(req: NextRequest) {
     try {
+        const client = getConvexClient();
+        if (!client) {
+            return NextResponse.json(
+                { error: "Missing deployment address" },
+                { status: 500 }
+            );
+        }
         const { searchParams } = new URL(req.url);
         const widgetId = searchParams.get("widgetId");
 
@@ -25,7 +38,7 @@ export async function GET(req: NextRequest) {
         // Use Convex public query to fetch reviews
         // Note: widgetId should be a Convex ID string format
         try {
-            const reviews = await convex.query(api.public.reviews.getWidgetReviews, {
+            const reviews = await client.query(api.public.reviews.getWidgetReviews, {
                 widgetId: widgetId as Id<"widgets">,
             });
 
