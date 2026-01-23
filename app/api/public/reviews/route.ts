@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
 const getConvexClient = () => {
-    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    const url = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!url) {
         return null;
     }

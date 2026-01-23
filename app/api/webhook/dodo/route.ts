@@ -3,11 +3,21 @@ import crypto from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL!);
+const getConvexClient = () => {
+    const url = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+        return null;
+    }
+    return new ConvexHttpClient(url);
+};
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
     try {
+        const convex = getConvexClient();
+        if (!convex) {
+            return NextResponse.json({ error: "Missing deployment address" }, { status: 500 });
+        }
         const secret = process.env.DODO_WEBHOOK_SECRET;
         if (!secret) {
             return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });
