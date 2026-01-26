@@ -93,17 +93,7 @@ export function FloatingComposition() {
             </motion.div>
 
             {/* Sync Indicator */}
-            <motion.div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 }}
-            >
-                <div className="glass-panel px-4 py-2 flex items-center gap-2 shadow-xl">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-mono font-medium tracking-tight">Syncing...</span>
-                </div>
-            </motion.div>
+            {/* Sync Indicator removed for cleaner UX */}
         </div>
     );
 }

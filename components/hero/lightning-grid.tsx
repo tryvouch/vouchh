@@ -35,7 +35,7 @@ export function LightningGrid() {
     };
 
     return (
-        <div className="absolute inset-0 opacity-30 dark:opacity-20">
+        <div className="absolute inset-0 opacity-30 dark:opacity-20 pointer-events-none">
             <svg 
                 className="w-full h-full" 
                 viewBox="0 0 450 200" 
