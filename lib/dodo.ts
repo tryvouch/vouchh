@@ -1,12 +1,9 @@
 export const dodoConfig = {
     publishableKey: process.env.NEXT_PUBLIC_DODO_PUBLISHABLE_KEY || "",
-    // Monthly plan
-    monthlyProductId: "pdt_0NWT11ZCTOftJ0ErzVwIv",
+    monthlyProductId: process.env.NEXT_PUBLIC_DODO_MONTHLY_PRODUCT_ID || "pdt_0NWT11ZCTOftJ0ErzVwIv",
     monthlyPrice: 49,
-    // Annual plan
-    annualProductId: "pdt_0NWT1N2cSw0Xu6VRyh2FJ",
+    annualProductId: process.env.NEXT_PUBLIC_DODO_ANNUAL_PRODUCT_ID || "pdt_0NWT1N2cSw0Xu6VRyh2FJ",
     annualPrice: 499,
-    // Legacy support
     proPlanPriceId: "price_vouch_pro_49",
     trialDays: 14,
     proPlanPrice: 49,
