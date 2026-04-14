@@ -11,13 +11,46 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { Toaster } from "@/components/ui/sonner";
 
+function formatDate(timestamp: number | undefined): string {
+    if (!timestamp) return "N/A";
+    return new Date(timestamp).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+}
+
+function getStatusBadge(status: string | undefined) {
+    const statusMap: Record<string, { label: string; classes: string }> = {
+        active: { label: "Active", classes: "bg-green-500/10 text-green-600 border-green-500/20" },
+        trialing: { label: "Trial", classes: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+        past_due: { label: "Past Due", classes: "bg-red-500/10 text-red-600 border-red-500/20" },
+        cancelled: { label: "Cancelled", classes: "bg-gray-500/10 text-gray-600 border-gray-500/20" },
+        hibernating: { label: "Hibernated", classes: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    };
+    const info = statusMap[status || ""] || { label: "Free", classes: "bg-gray-500/10 text-gray-500 border-gray-500/20" };
+    return (
+        <span className={`px-3 py-1 text-xs font-medium rounded-full border ${info.classes}`}>
+            {info.label}
+        </span>
+    );
+}
+
 export default function DashboardPage() {
     const { user } = useUser();
     
-    // In a real app, you'd select the active widget dynamically
-    // For the "God Build", we'll mock or grab the first one if available
     const widgets = useQuery(api.widgets.getWidgets);
+    const subscription = useQuery(api.billing.getSubscription);
     const firstWidgetId = widgets?.[0]?._id;
+
+    const planLabel = subscription?.status === "active" ? "Pro Plan" : 
+                      subscription?.status === "trialing" ? "Pro Plan (Trial)" : 
+                      "Free Plan";
+    const nextBillingLabel = subscription?.status === "trialing" && subscription?.trialEndsAt
+        ? `Trial ends: ${formatDate(subscription.trialEndsAt)}`
+        : subscription?.currentPeriodEnd
+        ? `Next billing: ${formatDate(subscription.currentPeriodEnd)}`
+        : "No active subscription";
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -65,17 +98,27 @@ export default function DashboardPage() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center p-4 bg-background/50 rounded-lg border border-border/50">
                                     <div>
-                                        <p className="font-medium">Pro Plan (Yearly)</p>
-                                        <p className="text-sm text-muted-foreground">Next billing: Jan 18, 2027</p>
+                                        <p className="font-medium">{planLabel}</p>
+                                        <p className="text-sm text-muted-foreground">{nextBillingLabel}</p>
                                     </div>
-                                    <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-medium rounded-full border border-green-500/20">
-                                        Active
-                                    </span>
+                                    {getStatusBadge(subscription?.status)}
                                 </div>
                                 
-                                <div className="pt-4 border-t border-border/40">
-                                    <CancellationFlow />
-                                </div>
+                                {subscription && subscription.status !== "cancelled" && subscription.status !== "hibernating" && (
+                                    <div className="pt-4 border-t border-border/40">
+                                        <CancellationFlow />
+                                    </div>
+                                )}
+
+                                {(!subscription || subscription.status === "cancelled") && (
+                                    <div className="pt-4 border-t border-border/40">
+                                        <Link href="/pricing">
+                                            <Button className="w-full bg-foreground text-background hover:opacity-90">
+                                                Upgrade to Pro
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     </div>

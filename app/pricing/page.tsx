@@ -4,31 +4,74 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { Check, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { dodoConfig, getDodoCheckoutUrl, type BillingPeriod } from "@/lib/dodo";
+import { revenueCatConfig, getRevenueCatInstance, type BillingPeriod } from "@/lib/revenuecat";
 import { useUser } from "@clerk/nextjs";
 import { BillingToggle } from "@/components/pricing/billing-toggle";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useRouter } from "next/navigation";
+import { PurchasesError, ErrorCode } from "@revenuecat/purchases-js";
 
 export default function PricingPage() {
     const { user } = useUser();
     const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+    const [isPurchasing, setIsPurchasing] = useState(false);
+    const syncSubscription = useMutation(api.billing.syncSubscriptionFromClient);
+    const router = useRouter();
 
-    const handleCheckout = () => {
-        const productId = billingPeriod === "monthly" 
-            ? dodoConfig.monthlyProductId 
-            : dodoConfig.annualProductId;
+    const handleCheckout = async () => {
+        if (!user?.id) {
+            router.push("/sign-up");
+            return;
+        }
 
-        const checkoutUrl = getDodoCheckoutUrl({
-            productId,
-            billingPeriod,
-            customerId: user?.id,
-            successUrl: `${window.location.origin}/dashboard?upgraded=true`,
-            cancelUrl: `${window.location.origin}/pricing`,
-            trialDays: dodoConfig.trialDays,
-        });
-        window.location.href = checkoutUrl;
+        setIsPurchasing(true);
+        try {
+            const purchases = getRevenueCatInstance(user.id);
+            const offerings = await purchases.getOfferings();
+            
+            if (!offerings.current) {
+                throw new Error("No offerings available");
+            }
+
+            // Select the correct package based on billing period
+            const pkg = billingPeriod === "monthly" 
+                ? offerings.current.monthly 
+                : offerings.current.annual;
+
+            if (!pkg) {
+                throw new Error(`No ${billingPeriod} package available`);
+            }
+
+            const purchaseResult = await purchases.purchase({ rcPackage: pkg });
+            const { customerInfo } = purchaseResult;
+
+            // Check if the user now has the pro entitlement
+            if (revenueCatConfig.entitlementId in customerInfo.entitlements.active) {
+                // Sync subscription status to Convex
+                const entitlement = customerInfo.entitlements.active[revenueCatConfig.entitlementId];
+                const expirationMs = entitlement.expirationDate 
+                    ? new Date(entitlement.expirationDate).getTime() 
+                    : Date.now() + 30 * 24 * 60 * 60 * 1000;
+                await syncSubscription({
+                    status: "active",
+                    currentPeriodEnd: expirationMs,
+                    revenueCatId: customerInfo.originalAppUserId,
+                });
+                router.push("/dashboard?upgraded=true");
+            }
+        } catch (e) {
+            if (e instanceof PurchasesError && e.errorCode === ErrorCode.UserCancelledError) {
+                // User cancelled — do nothing
+            } else {
+                console.error("Purchase failed:", e);
+            }
+        } finally {
+            setIsPurchasing(false);
+        }
     };
 
     const features = [
@@ -40,8 +83,8 @@ export default function PricingPage() {
         "Priority support",
     ];
 
-    const price = billingPeriod === "monthly" ? dodoConfig.monthlyPrice : dodoConfig.annualPrice;
-    const monthlyEquivalent = billingPeriod === "annual" ? Math.round(dodoConfig.annualPrice / 12) : dodoConfig.monthlyPrice;
+    const price = billingPeriod === "monthly" ? revenueCatConfig.monthlyPrice : revenueCatConfig.annualPrice;
+    const monthlyEquivalent = billingPeriod === "annual" ? Math.round(revenueCatConfig.annualPrice / 12) : revenueCatConfig.monthlyPrice;
 
     return (
         <div className="min-h-screen bg-background">
@@ -73,7 +116,7 @@ export default function PricingPage() {
                         Simple Pricing
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto tracking-tight">
-                        Start with a {dodoConfig.trialDays}-day free trial. No credit card required.
+                        Start with a {revenueCatConfig.trialDays}-day free trial. No credit card required.
                     </p>
                 </motion.div>
 
@@ -122,7 +165,7 @@ export default function PricingPage() {
                                 </motion.p>
                             )}
                             <p className="text-sm text-muted-foreground tracking-tight mt-4">
-                                {dodoConfig.trialDays}-day free trial • Cancel anytime
+                                {revenueCatConfig.trialDays}-day free trial • Cancel anytime
                             </p>
                         </div>
 
@@ -145,16 +188,26 @@ export default function PricingPage() {
 
                         <motion.button
                             onClick={handleCheckout}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="w-full h-14 bg-foreground text-background font-medium tracking-tight flex items-center justify-center gap-2.5 transition-opacity hover:opacity-90"
+                            disabled={isPurchasing}
+                            whileHover={{ scale: isPurchasing ? 1 : 1.02 }}
+                            whileTap={{ scale: isPurchasing ? 1 : 0.98 }}
+                            className="w-full h-14 bg-foreground text-background font-medium tracking-tight flex items-center justify-center gap-2.5 transition-opacity hover:opacity-90 disabled:opacity-50"
                         >
-                            Start Free Trial
-                            <ArrowRight className="h-4 w-4" />
+                            {isPurchasing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    Start Free Trial
+                                    <ArrowRight className="h-4 w-4" />
+                                </>
+                            )}
                         </motion.button>
 
                         <p className="text-center text-xs text-muted-foreground mt-6 tracking-tight">
-                            No credit card required. Trial converts to paid after {dodoConfig.trialDays} days.
+                            No credit card required. Trial converts to paid after {revenueCatConfig.trialDays} days.
                         </p>
                     </div>
                 </motion.div>
@@ -172,8 +225,8 @@ export default function PricingPage() {
                     <div className="space-y-8">
                         {[
                             {
-                                q: `What happens after the ${dodoConfig.trialDays}-day trial?`,
-                                a: `Your trial automatically converts to a paid Pro subscription at $${billingPeriod === "monthly" ? "49/month" : "499/year"}. You can cancel anytime before the trial ends with no charges.`
+                                q: `What happens after the ${revenueCatConfig.trialDays}-day trial?`,
+                                a: `Your trial automatically converts to a paid Pro subscription at $${billingPeriod === "monthly" ? "19/month" : "199/year"}. You can cancel anytime before the trial ends with no charges.`
                             },
                             {
                                 q: "Can I cancel anytime?",
@@ -181,15 +234,15 @@ export default function PricingPage() {
                             },
                             {
                                 q: "What payment methods do you accept?",
-                                a: "We accept all major credit cards and debit cards through Dodo Payments, our secure payment processor."
+                                a: "We accept all major credit cards and debit cards through Stripe, our secure payment processor powered by RevenueCat."
                             },
                             {
                                 q: "Do you offer refunds?",
-                                a: `We offer a ${dodoConfig.trialDays}-day free trial so you can test everything risk-free. If you're not satisfied, cancel before the trial ends.`
+                                a: `We offer a ${revenueCatConfig.trialDays}-day free trial so you can test everything risk-free. If you're not satisfied, cancel before the trial ends.`
                             },
                             {
                                 q: "Can I switch between monthly and annual billing?",
-                                a: "Yes, you can switch your billing period at any time. Annual plans save you 15% compared to monthly billing."
+                                a: "Yes, you can switch your billing period at any time. Annual plans save you 13% compared to monthly billing."
                             }
                         ].map((faq, index) => (
                             <motion.div

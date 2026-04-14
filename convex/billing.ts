@@ -1,18 +1,20 @@
-import { mutation, query, internalMutation, httpAction, internalQuery } from "./_generated/server";
+import { mutation, query, internalMutation, httpAction } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "./auth";
 import { internal } from "./_generated/api";
 
 const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 
-// ... (initUser remains same)
-
-export const syncSubscriptionIdempotent = mutation({
+/**
+ * INTERNAL mutation — only callable from webhook handlers, NOT from the client.
+ * Syncs subscription state from RevenueCat webhook events.
+ */
+export const syncSubscriptionIdempotent = internalMutation({
     args: {
         webhookId: v.string(),
         eventType: v.string(),
         clerkId: v.string(),
-        dodoPaymentId: v.string(),
+        revenueCatId: v.string(),
         status: v.union(v.literal("active"), v.literal("cancelled"), v.literal("past_due"), v.literal("trialing"), v.literal("hibernating")),
         currentPeriodEnd: v.number(),
         trialEndsAt: v.optional(v.number()),
@@ -60,7 +62,7 @@ export const syncSubscriptionIdempotent = mutation({
             isSubscriptionActive: boolean;
             trialEndsAt?: number;
         } = {
-            dodoId: args.dodoPaymentId,
+            dodoId: args.revenueCatId, // Reusing field for RevenueCat ID
             status: args.status,
             currentPeriodEnd: args.currentPeriodEnd,
             isSubscriptionActive,
@@ -87,11 +89,14 @@ export const syncSubscriptionIdempotent = mutation({
     },
 });
 
-export const handlePaymentFailed = mutation({
+/**
+ * INTERNAL mutation — prevents external callers from downgrading users.
+ */
+export const handlePaymentFailed = internalMutation({
     args: {
         webhookId: v.string(),
         clerkId: v.string(),
-        dodoPaymentId: v.string(),
+        revenueCatId: v.string(),
     },
     handler: async (ctx, args) => {
         const existing = await ctx.db
@@ -127,7 +132,7 @@ export const handlePaymentFailed = mutation({
             await ctx.db.patch(subscription._id, {
                 status: "past_due",
                 isSubscriptionActive: false,
-                dodoId: args.dodoPaymentId,
+                dodoId: args.revenueCatId,
             });
             await ctx.db.patch(user._id, { plan: "free" });
 
@@ -142,123 +147,76 @@ export const handlePaymentFailed = mutation({
     },
 });
 
-export const processDodoWebhook = httpAction(async (ctx, request) => {
-    const signature = request.headers.get("webhook-id"); // Using webhook-id for idempotency tracking
-    if (!signature) {
-        return new Response("Missing webhook-id", { status: 400 });
+/**
+ * RevenueCat Webhook HTTP Action
+ * Called from the Next.js API route after Authorization header verification.
+ */
+export const processRevenueCatWebhook = httpAction(async (ctx, request) => {
+    const requestJson = await request.json();
+    
+    // Handle both Next.js proxied payload and direct RevenueCat webhook payload
+    let payload = requestJson;
+    if (requestJson.event) {
+        payload = {
+            type: requestJson.event.type,
+            appUserId: requestJson.event.app_user_id,
+            productId: requestJson.event.product_id,
+            expirationAtMs: requestJson.event.expiration_at_ms,
+            transactionId: requestJson.event.transaction_id || requestJson.event.id,
+            environment: requestJson.event.environment,
+            periodType: requestJson.event.period_type,
+        };
     }
 
-    // Idempotency Check
-    const isProcessed = await ctx.runQuery(internal.billing.isWebhookProcessed, { webhookId: signature });
-    if (isProcessed) {
-        return new Response("Webhook already processed", { status: 200 });
+    const { type, appUserId, expirationAtMs, transactionId } = payload;
+
+    if (!type || !appUserId) {
+        return new Response("Invalid payload", { status: 400 });
     }
 
-    const payload = await request.json();
-    const { type, data } = payload;
+    const webhookId = transactionId || `rc_${Date.now()}`;
 
-    // Record Webhook (Idempotency) & Process
-    await ctx.runMutation(internal.billing.recordAndProcessWebhook, {
-        webhookId: signature,
-        type,
-        data,
+    // Map RevenueCat event types to subscription status
+    const statusMap: Record<string, "active" | "cancelled" | "past_due" | "trialing"> = {
+        INITIAL_PURCHASE: "active",
+        RENEWAL: "active",
+        TRIAL_STARTED: "trialing",
+        TRIAL_CONVERTED: "active",
+        CANCELLATION: "cancelled",
+        UNCANCELLATION: "active",
+        EXPIRATION: "cancelled",
+        BILLING_ISSUE: "past_due",
+        PRODUCT_CHANGE: "active",
+    };
+
+    const status = statusMap[type];
+    if (!status) {
+        // Event type we don't care about (e.g., TEST, TRANSFER)
+        return new Response("Ignored", { status: 200 });
+    }
+
+    if (type === "BILLING_ISSUE") {
+        await ctx.runMutation(internal.billing.handlePaymentFailed, {
+            webhookId,
+            clerkId: appUserId,
+            revenueCatId: appUserId,
+        });
+        return new Response("Processed", { status: 200 });
+    }
+
+    const currentPeriodEnd = expirationAtMs || (Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await ctx.runMutation(internal.billing.syncSubscriptionIdempotent, {
+        webhookId,
+        eventType: type,
+        clerkId: appUserId,
+        revenueCatId: appUserId,
+        status,
+        currentPeriodEnd,
+        trialEndsAt: type === "TRIAL_STARTED" ? currentPeriodEnd : undefined,
     });
 
-    return new Response("Webhook processed", { status: 200 });
-});
-
-export const isWebhookProcessed = internalQuery({
-    args: { webhookId: v.string() },
-    handler: async (ctx, args) => {
-        const existing = await ctx.db
-            .query("processed_webhooks")
-            .withIndex("by_webhook_id", (q) => q.eq("webhookId", args.webhookId))
-            .first();
-        return !!existing;
-    },
-});
-
-export const recordAndProcessWebhook = internalMutation({
-    args: {
-        webhookId: v.string(),
-        type: v.string(),
-        data: v.any(),
-    },
-    handler: async (ctx, args) => {
-        // 1. Record Webhook
-        await ctx.db.insert("processed_webhooks", {
-            webhookId: args.webhookId,
-            type: args.type,
-            processedAt: Date.now(),
-        });
-
-        // 2. Process Logic
-        const { type, data } = args;
-        const clerkId = data.metadata?.clerk_id || data.customer_id;
-
-        if (!clerkId) {
-            console.error("No clerk_id in webhook payload");
-            return;
-        }
-
-        const statusMap: Record<string, "active" | "cancelled" | "past_due" | "trialing"> = {
-            active: "active",
-            trialing: "trialing",
-            canceled: "cancelled",
-            past_due: "past_due",
-        };
-
-        // Reuse syncSubscription logic (or call it directly if exported as internal helper, but here we inline for safety/atomicity)
-         const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-            .unique();
-
-        if (!user) return; // User not found, maybe log error
-
-        const subscription = await ctx.db
-            .query("subscriptions")
-            .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-            .unique();
-        
-        // Logic to update subscription based on event type
-        // ... (Simplified for brevity, assuming syncSubscription logic handles the core update)
-        // We will call the existing syncSubscription internal mutation to keep logic DRY if possible, 
-        // or just implement the update here. Given the context, I'll implement the update here to ensure it runs within the same transaction.
-
-        let status = statusMap[data.status] || "active";
-        let currentPeriodEnd = new Date(data.current_period_end).getTime();
-        const trialEndsAt = data.trial_end ? new Date(data.trial_end).getTime() : undefined;
-
-        if (type === "subscription.cancelled" || type === "subscription.deleted") {
-            status = "cancelled";
-            currentPeriodEnd = Date.now();
-        }
-
-        if (subscription) {
-            const isSubscriptionActive = 
-                status === "active" || 
-                (status === "trialing" && (trialEndsAt ?? 0) > Date.now());
-
-            await ctx.db.patch(subscription._id, {
-                dodoId: data.id,
-                status,
-                currentPeriodEnd,
-                trialEndsAt,
-                isSubscriptionActive,
-            });
-        } else {
-            // Create new if somehow missing
-             await ctx.db.insert("subscriptions", {
-                userId: user._id,
-                dodoId: data.id,
-                status,
-                currentPeriodEnd,
-                trialEndsAt,
-                isSubscriptionActive: status === "active",
-            });
-        }
-    },
+    return new Response("Processed", { status: 200 });
 });
 
 export const hibernateSubscription = mutation({
@@ -275,7 +233,7 @@ export const hibernateSubscription = mutation({
         // Lock data instead of deleting
         await ctx.db.patch(subscription._id, {
             status: "hibernating",
-            isSubscriptionActive: false, // Access restricted but data preserved
+            isSubscriptionActive: false,
         });
 
         return { success: true, message: "Account hibernated. Data locked." };
@@ -302,7 +260,7 @@ export const initUser = mutation({
         const userId = await ctx.db.insert("users", {
             clerkId: identity.subject,
             email: identity.email!,
-            plan: "pro", // Start as Pro during trial
+            plan: "pro",
             createdAt: Date.now(),
         });
 
@@ -314,7 +272,7 @@ export const initUser = mutation({
             status: "trialing",
             currentPeriodEnd: trialEnd,
             trialEndsAt: trialEnd,
-            isSubscriptionActive: true, // Trial grants active access
+            isSubscriptionActive: true,
         });
 
         return userId;
@@ -332,10 +290,57 @@ export const getSubscription = query({
     },
 });
 
+/**
+ * Client-callable mutation to sync subscription after successful RevenueCat purchase.
+ * Requires authentication — only syncs the calling user's own subscription.
+ */
+export const syncSubscriptionFromClient = mutation({
+    args: {
+        status: v.union(v.literal("active"), v.literal("cancelled"), v.literal("trialing")),
+        currentPeriodEnd: v.number(),
+        revenueCatId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+
+        const subscription = await ctx.db
+            .query("subscriptions")
+            .withIndex("by_user_id", (q) => q.eq("userId", userId))
+            .unique();
+
+        const isSubscriptionActive = args.status === "active" || args.status === "trialing";
+
+        if (subscription) {
+            await ctx.db.patch(subscription._id, {
+                dodoId: args.revenueCatId,
+                status: args.status,
+                currentPeriodEnd: args.currentPeriodEnd,
+                isSubscriptionActive,
+            });
+        } else {
+            await ctx.db.insert("subscriptions", {
+                userId,
+                dodoId: args.revenueCatId,
+                status: args.status,
+                currentPeriodEnd: args.currentPeriodEnd,
+                isSubscriptionActive,
+            });
+        }
+
+        const plan = isSubscriptionActive ? "pro" : "free";
+        const user = await ctx.db.get(userId);
+        if (user) {
+            await ctx.db.patch(userId, { plan });
+        }
+
+        return { success: true };
+    },
+});
+
 export const syncSubscription = internalMutation({
     args: {
         clerkId: v.string(),
-        dodoPaymentId: v.string(), // Keep for backward compatibility
+        revenueCatId: v.string(),
         status: v.union(
             v.literal("active"),
             v.literal("cancelled"),
@@ -362,7 +367,6 @@ export const syncSubscription = internalMutation({
             .unique();
 
         if (subscription) {
-            // Compute isSubscriptionActive
             const isSubscriptionActive = 
                 args.status === "active" || 
                 (args.status === "trialing" && (args.trialEndsAt ?? 0) > Date.now());
@@ -374,7 +378,7 @@ export const syncSubscription = internalMutation({
                 isSubscriptionActive: boolean;
                 trialEndsAt?: number;
             } = {
-                dodoId: args.dodoPaymentId,
+                dodoId: args.revenueCatId,
                 status: args.status,
                 currentPeriodEnd: args.currentPeriodEnd,
                 isSubscriptionActive,
@@ -386,7 +390,6 @@ export const syncSubscription = internalMutation({
 
             await ctx.db.patch(subscription._id, updateData);
 
-            // Upgrade user to Pro if subscription is active
             if (args.status === "active") {
                 await ctx.db.patch(user._id, { plan: "pro" });
             } else if (args.status === "cancelled") {
@@ -395,8 +398,6 @@ export const syncSubscription = internalMutation({
         }
     },
 });
-
-
 
 export const checkTrialExpiration = mutation({
     args: {},

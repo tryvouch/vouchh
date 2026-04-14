@@ -1,5 +1,5 @@
 "use node";
-import { action } from "../_generated/server";
+import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 
@@ -54,7 +54,11 @@ const mockReviews = [
     },
 ];
 
-export const seedReviews = action({
+/**
+ * INTERNAL action — only callable from Convex dashboard or other internal functions.
+ * Previously was a public action which allowed any client to create unlimited fake reviews.
+ */
+export const seedReviews = internalAction({
     args: {
         userId: v.id("users"),
         widgetId: v.id("widgets"),

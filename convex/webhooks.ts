@@ -1,7 +1,11 @@
-import { mutation, query } from "./_generated/server";
+import { internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const isProcessed = query({
+/**
+ * INTERNAL query — prevents external callers from checking webhook processing status.
+ * Previously was a public query which could be used to probe for processed webhooks.
+ */
+export const isProcessed = internalQuery({
     args: { webhookId: v.string() },
     handler: async (ctx, args) => {
         const existing = await ctx.db
@@ -12,7 +16,12 @@ export const isProcessed = query({
     },
 });
 
-export const record = mutation({
+/**
+ * INTERNAL mutation — prevents external callers from marking webhooks as processed,
+ * which could block legitimate webhook processing.
+ * Previously was a public mutation.
+ */
+export const record = internalMutation({
     args: { webhookId: v.string(), type: v.string() },
     handler: async (ctx, args) => {
         const existing = await ctx.db

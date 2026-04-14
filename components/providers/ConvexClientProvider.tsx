@@ -4,6 +4,7 @@ import { ReactNode, useMemo } from "react";
 import { ConvexReactClient } from "convex/react";
 import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { UserInitializer } from "./user-initializer";
 
 export default function ConvexClientProvider({ children }: { children: ReactNode }) {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -19,6 +20,7 @@ export default function ConvexClientProvider({ children }: { children: ReactNode
     return (
         <ClerkProvider>
             <ConvexProviderWithClerk client={client} useAuth={useAuth}>
+                <UserInitializer />
                 {children}
             </ConvexProviderWithClerk>
         </ClerkProvider>

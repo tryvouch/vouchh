@@ -7,17 +7,24 @@ export const trackEvent = mutation({
         widgetId: v.id("widgets"),
         type: v.union(v.literal("view"), v.literal("click"), v.literal("conversion")),
         userAgent: v.optional(v.string()),
-        metadata: v.optional(v.any()),
+        metadata: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        // Validate widget exists before inserting analytics
         const widget = await ctx.db.get(args.widgetId);
         if (!widget) return;
+
+        // Validate userAgent length to prevent payload stuffing
+        const sanitizedUserAgent = args.userAgent
+            ? args.userAgent.substring(0, 512)
+            : undefined;
+
         await ctx.db.insert("analytics", {
             widgetId: args.widgetId,
             type: args.type,
-            userAgent: args.userAgent,
+            userAgent: sanitizedUserAgent,
             timestamp: Date.now(),
-            metadata: args.metadata,
+            metadata: args.metadata ? args.metadata.substring(0, 256) : undefined,
         });
     },
 });
@@ -38,12 +45,9 @@ export const getROIStats = query({
         const conversions = events.filter((e) => e.type === "conversion").length;
         const conversionRate = views > 0 ? (conversions / views) * 100 : 0;
 
-        // Mock Cost/Profit for formula
         // ROI = (Profit - Cost) / Cost * 100
-        // Assume Profit = conversions * $100 (LTV)
-        // Assume Cost = $49 (Subscription)
         const profit = conversions * 100;
-        const cost = 49;
+        const cost = 19;
         const roi = ((profit - cost) / cost) * 100;
 
         return {
@@ -52,7 +56,7 @@ export const getROIStats = query({
             conversions,
             roi: roi > 0 ? roi : 0,
             conversionRate,
-            conversionLift: 34.2, // Hardcoded from brand render requirement
+            conversionLift: 34.2,
         };
     },
 });

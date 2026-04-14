@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                 <section className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Contact</h2>
                     <p className="text-muted-foreground leading-relaxed tracking-tight">
-                        For privacy requests, contact support@vouch.ai.
+                        For privacy requests, contact tryvouchapp@gmail.com.
                     </p>
                 </section>
             </main>

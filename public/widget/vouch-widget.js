@@ -15,7 +15,7 @@
         userId: script.getAttribute('data-user-id'),
         theme: script.getAttribute('data-theme') || 'auto',
         position: script.getAttribute('data-position') || 'bottom-right',
-        apiUrl: script.getAttribute('data-api-url') || 'https://vouch.convex.site',
+        apiUrl: script.getAttribute('data-api-url') || window.location.origin,
     };
     
     if (!VOUCH_WIDGET_CONFIG.widgetId) {

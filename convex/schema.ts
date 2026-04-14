@@ -39,17 +39,17 @@ export default defineSchema({
 
     subscriptions: defineTable({
         userId: v.id("users"),
-        dodoId: v.string(), // Dodo Payments ID
+        dodoId: v.string(), // Legacy field name — now stores RevenueCat ID
         status: v.union(
             v.literal("active"),
             v.literal("cancelled"),
             v.literal("past_due"),
             v.literal("trialing"),
-            v.literal("hibernating") // Hibernation status
+            v.literal("hibernating")
         ),
         currentPeriodEnd: v.number(),
-        trialEndsAt: v.optional(v.number()), // 7-day trial end timestamp
-        isSubscriptionActive: v.boolean(), // Computed: status === "active" || (status === "trialing" && trialEndsAt > Date.now())
+        trialEndsAt: v.optional(v.number()),
+        isSubscriptionActive: v.boolean(),
     }).index("by_user_id", ["userId"]),
 
     analytics: defineTable({
@@ -57,7 +57,7 @@ export default defineSchema({
         type: v.union(v.literal("view"), v.literal("click"), v.literal("conversion")),
         userAgent: v.optional(v.string()),
         timestamp: v.number(),
-        metadata: v.optional(v.any()), // For A/B testing variants (e.g., "control", "glow-variant")
+        metadata: v.optional(v.string()),
     }).index("by_widget_id", ["widgetId"]),
 
     paymentFailures: defineTable({

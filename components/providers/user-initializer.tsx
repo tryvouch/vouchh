@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 
 /**
  * Elite User Initializer
- * Automatically creates user with 7-day Pro trial on first Clerk sign-up
+ * Automatically creates user with 14-day Pro trial on first Clerk sign-up
  */
 export function UserInitializer() {
     const { user, isLoaded } = useUser();

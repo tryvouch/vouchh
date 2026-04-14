@@ -64,7 +64,14 @@ export function CancellationFlow() {
                     >
                         Hibernate Account ($5/mo)
                     </Button>
-                    <Button variant="ghost" className="w-full text-muted-foreground hover:text-red-600">
+                    <Button 
+                        variant="ghost" 
+                        className="w-full text-muted-foreground hover:text-red-600"
+                        onClick={() => {
+                            toast.info("Please contact tryvouchapp@gmail.com to permanently delete your account.");
+                            setIsOpen(false);
+                        }}
+                    >
                         I still want to delete everything
                     </Button>
                 </DialogFooter>

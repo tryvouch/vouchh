@@ -80,7 +80,7 @@ export default function TermsPage() {
                 <section className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Contact</h2>
                     <p className="text-muted-foreground leading-relaxed tracking-tight">
-                        Questions about these terms can be sent to support@vouch.ai.
+                        Questions about these terms can be sent to tryvouchapp@gmail.com.
                     </p>
                 </section>
             </main>

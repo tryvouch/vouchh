@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
-import { BillingPeriod } from "@/lib/dodo";
+import { BillingPeriod } from "@/lib/revenuecat";
 
 interface BillingToggleProps {
     billingPeriod: BillingPeriod;
@@ -67,7 +67,7 @@ export function BillingToggle({ billingPeriod, onBillingPeriodChange }: BillingT
                         animate={{ opacity: 1, scale: 1 }}
                         className="px-2 py-0.5 bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-medium tracking-tight elite-mono"
                     >
-                        Save 15%
+                        Save 13%
                     </motion.span>
                 )}
             </div>

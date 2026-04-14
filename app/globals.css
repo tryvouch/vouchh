@@ -100,16 +100,12 @@
     }
     .elite-kerning {
         letter-spacing: -0.02em;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     }
     .grid-bento {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 1.5rem;
-    }
-    /* Studio Elite Typography */
-    .elite-kerning {
-        letter-spacing: -0.02em;
-        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     }
     .elite-mono {
         font-family: var(--font-geist-mono);

@@ -93,7 +93,7 @@ export default function Home() {
                             </Button>
                         </Link>
                         <div className="text-sm text-muted-foreground tracking-tight">
-                            <span className="font-medium text-foreground">7 Days Free.</span> No credit card required.
+                            <span className="font-medium text-foreground">14 Days Free.</span> No credit card required.
                         </div>
                     </motion.div>
                 </motion.div>

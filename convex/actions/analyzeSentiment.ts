@@ -3,6 +3,18 @@ import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 
+/**
+ * Sanitize user input before embedding in prompts to prevent prompt injection.
+ * Strips control characters, limits length, and escapes quotes.
+ */
+function sanitizeForPrompt(text: string, maxLength: number = 1000): string {
+    return text
+        .replace(/[\x00-\x1F\x7F]/g, "") // Strip control characters
+        .replace(/["""]/g, "'") // Normalize quotes to prevent prompt escape
+        .substring(0, maxLength) // Limit length
+        .trim();
+}
+
 export const analyzeReview = action({
   args: { reviewId: v.id("reviews") },
   handler: async (ctx, args): Promise<{ sentiment: "Positive" | "Questionable" | "Spam" | null }> => {
@@ -18,6 +30,8 @@ export const analyzeReview = action({
       return { sentiment: null };
     }
 
+    const sanitizedContent = sanitizeForPrompt(review.content);
+
     const prompt = `Analyze this review for a business. 
     You must output strictly valid JSON in the following format:
     {
@@ -26,7 +40,7 @@ export const analyzeReview = action({
       "summary": string (max 10 words)
     }
     
-    Review: "${review.content}"
+    Review: '${sanitizedContent}'
     
     Respond with ONLY the JSON object. Do not include markdown formatting or backticks.`;
 
@@ -53,12 +67,10 @@ export const analyzeReview = action({
       // Strict JSON Parsing with Safety Fallback
       let result;
       try {
-          // Remove any potential markdown code blocks if the model ignores instruction
           const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
           result = JSON.parse(cleanText);
       } catch {
           console.error("AI Hallucination - Invalid JSON:", text);
-          // Fallback to basic sentiment logic if AI fails
           result = { 
               sentiment: "Questionable", 
               score: 50, 
@@ -105,10 +117,12 @@ export const analyzeNpsCategory = action({
       return { npsCategory: fallbackCategory };
     }
 
+    const sanitizedContent = sanitizeForPrompt(review.content);
+
     const prompt = `Classify this review into NPS category based on 0-10 score.
 Return ONLY valid JSON: {"npsCategory":"Promoter"|"Detractor"|"Passive"}.
 Score: ${normalizedScore}
-Review: "${review.content}"`;
+Review: '${sanitizedContent}'`;
 
     try {
       const response = await fetch(

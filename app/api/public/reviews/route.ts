@@ -11,12 +11,22 @@ const getConvexClient = () => {
     return new ConvexHttpClient(url);
 };
 
+// Validate widgetId format to prevent injection
+const CONVEX_ID_PATTERN = /^[a-zA-Z0-9_]+$/;
+
 /**
  * Public API endpoint for widget reviews
  * No authentication required - used by embedded widget
  * CORS enabled for cross-origin requests
  */
 export async function GET(req: NextRequest) {
+    const corsHeaders = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+    };
+
     try {
         const client = getConvexClient();
         if (!client) {
@@ -31,12 +41,18 @@ export async function GET(req: NextRequest) {
         if (!widgetId) {
             return NextResponse.json(
                 { error: "widgetId is required" },
-                { status: 400 }
+                { status: 400, headers: corsHeaders }
             );
         }
 
-        // Use Convex public query to fetch reviews
-        // Note: widgetId should be a Convex ID string format
+        // Validate widgetId format
+        if (!CONVEX_ID_PATTERN.test(widgetId) || widgetId.length > 64) {
+            return NextResponse.json(
+                { error: "Invalid widgetId format" },
+                { status: 400, headers: corsHeaders }
+            );
+        }
+
         try {
             const reviews = await client.query(api.public.reviews.getWidgetReviews, {
                 widgetId: widgetId as Id<"widgets">,
@@ -44,40 +60,13 @@ export async function GET(req: NextRequest) {
 
             return NextResponse.json(
                 reviews || [],
-                {
-                    headers: {
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Methods": "GET",
-                        "Access-Control-Allow-Headers": "Content-Type",
-                    },
-                }
+                { headers: corsHeaders }
             );
         } catch {
-            // If query fails (widget doesn't exist or invalid ID), return empty array
-            return NextResponse.json(
-                [],
-                {
-                    headers: {
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Methods": "GET",
-                        "Access-Control-Allow-Headers": "Content-Type",
-                    },
-                }
-            );
+            return NextResponse.json([], { headers: corsHeaders });
         }
     } catch {
-        // Return empty array on error (graceful degradation)
-        return NextResponse.json(
-            [],
-            {
-                status: 200,
-                headers: {
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET",
-                    "Access-Control-Allow-Headers": "Content-Type",
-                },
-            }
-        );
+        return NextResponse.json([], { status: 200, headers: corsHeaders });
     }
 }
 

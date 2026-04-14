@@ -14,6 +14,7 @@ import type * as actions_seedReviews from "../actions/seedReviews.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
+import type * as clerkWebhookHandler from "../clerkWebhookHandler.js";
 import type * as crons from "../crons.js";
 import type * as dunning from "../dunning.js";
 import type * as helpers from "../helpers.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   auth: typeof auth;
   billing: typeof billing;
+  clerkWebhookHandler: typeof clerkWebhookHandler;
   crons: typeof crons;
   dunning: typeof dunning;
   helpers: typeof helpers;

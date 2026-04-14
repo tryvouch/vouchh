@@ -4,6 +4,17 @@ import { internal } from "../_generated/api";
 import { v } from "convex/values";
 
 /**
+ * Sanitize user input before embedding in prompts to prevent prompt injection.
+ */
+function sanitizeForPrompt(text: string, maxLength: number = 1000): string {
+    return text
+        .replace(/[\x00-\x1F\x7F]/g, "")
+        .replace(/["""]/g, "'")
+        .substring(0, maxLength)
+        .trim();
+}
+
+/**
  * Elite AI Review Processing Action
  * Uses Gemini 1.5 Flash to filter spam and flag negative reviews
  * Returns sentiment analysis with reasoning
@@ -22,13 +33,15 @@ export const processReview = action({
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.warn("GEMINI_API_KEY missing - skipping AI processing");
-      // Default to visible but unclassified
       await ctx.runMutation(internal.reviews.updateSentiment, {
         id: args.reviewId,
         sentiment: "Questionable",
       });
       return { sentiment: "Questionable", isSpam: false, isNegative: false };
     }
+
+    const sanitizedContent = sanitizeForPrompt(review.content);
+    const sanitizedAuthor = sanitizeForPrompt(review.author, 100);
 
     // Enhanced prompt for better classification
     const prompt = `You are an AI assistant analyzing customer reviews for a business reputation platform.
@@ -39,9 +52,9 @@ Analyze this review and classify it into exactly ONE category:
 2. "Questionable" - Mixed feedback, neutral, mild complaints, or unclear intent
 3. "Spam" - Bot-generated, irrelevant, abusive, promotional spam, or fake review
 
-Review content: "${review.content}"
+Review content: '${sanitizedContent}'
 Rating: ${review.rating}/5
-Author: ${review.author}
+Author: '${sanitizedAuthor}'
 
 Rules:
 - If rating is 4-5 stars and content is positive → "Positive"
@@ -60,7 +73,7 @@ Respond with ONLY the category name: "Positive", "Questionable", or "Spam".`;
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3, // Lower temperature for more consistent classification
+              temperature: 0.3,
               maxOutputTokens: 10,
             }
           }),

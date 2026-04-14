@@ -1,31 +1,31 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
+// Routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
     "/",
     "/sign-in(.*)",
     "/sign-up(.*)",
     "/widget(.*)",
     "/api/webhook(.*)",
+    "/api/public(.*)",
     "/pricing(.*)",
+    "/privacy(.*)",
+    "/terms(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, request) => {
+export default clerkMiddleware(async (auth, request: NextRequest) => {
     if (!isPublicRoute(request)) {
         await auth.protect();
     }
 
     const response = NextResponse.next();
-    const abCookie = request.cookies.get("vouch-ab-variant");
 
-    if (!abCookie) {
-        const variant = Math.random() < 0.5 ? "control" : "glow-variant";
-        response.cookies.set("vouch-ab-variant", variant, {
-            path: "/",
-            maxAge: 60 * 60 * 24 * 30,
-            sameSite: "lax",
-        });
-    }
+    // Security headers applied at middleware level
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
     return response;
 });

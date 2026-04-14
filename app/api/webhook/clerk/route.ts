@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
-
-const getConvexClient = () => {
-    const url = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!url) {
-        return null;
-    }
-    return new ConvexHttpClient(url);
-};
 
 export const runtime = "nodejs";
 
@@ -23,14 +13,20 @@ type ClerkWebhookEvent = {
     };
 };
 
+/**
+ * Clerk Webhook Handler
+ * Verifies Svix signature, then forwards to Convex HTTP action for processing.
+ * This keeps all mutation logic in Convex (internal) while using Next.js for signature verification.
+ */
 export async function POST(req: NextRequest) {
-    const convex = getConvexClient();
-    if (!convex) {
-        return NextResponse.json({ error: "Missing deployment address" }, { status: 500 });
-    }
     const secret = process.env.CLERK_WEBHOOK_SECRET;
     if (!secret) {
         return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });
+    }
+
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!convexUrl) {
+        return NextResponse.json({ error: "Missing Convex URL" }, { status: 500 });
     }
 
     const payload = await req.text();
@@ -54,35 +50,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
-    const webhookId = svixId;
-    const wasProcessed = await convex.query(api.webhooks.isProcessed, { webhookId });
-    if (wasProcessed) {
-        return NextResponse.json({ received: true });
-    }
-
-    const { type, data } = event;
-    await convex.mutation(api.webhooks.record, { webhookId, type });
-    const email = data.email_addresses?.[0]?.email_address || "";
-
-    if (type === "user.created" || type === "user.updated") {
-        if (!data.id || !email) {
-            return NextResponse.json({ error: "Missing user data" }, { status: 400 });
-        }
-        await convex.mutation(api.users.upsertFromClerk, {
-            clerkId: data.id,
-            email,
-            firstName: data.first_name || undefined,
-            lastName: data.last_name || undefined,
+    // Forward verified event to Convex HTTP action for processing
+    const convexSiteUrl = convexUrl.replace(".cloud", ".site");
+    try {
+        const response = await fetch(`${convexSiteUrl}/clerk-webhook`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                webhookId: svixId,
+                type: event.type,
+                data: event.data,
+            }),
         });
-    }
 
-    if (type === "user.deleted") {
-        if (!data.id) {
-            return NextResponse.json({ error: "Missing user id" }, { status: 400 });
+        if (!response.ok) {
+            console.error("Convex clerk-webhook error:", await response.text());
+            return NextResponse.json({ error: "Processing failed" }, { status: 500 });
         }
-        await convex.mutation(api.users.deleteByClerkId, {
-            clerkId: data.id,
-        });
+    } catch (error) {
+        console.error("Failed to forward to Convex:", error);
+        return NextResponse.json({ error: "Processing failed" }, { status: 500 });
     }
 
     return NextResponse.json({ received: true });
